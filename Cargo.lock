@@ -7,6 +7,7 @@ name = "GPTSearch"
 version = "0.1.0"
 dependencies = [
  "chatgpt_rs",
+ "reqwest",
  "tokio",
 ]
 
