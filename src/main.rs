@@ -90,20 +90,18 @@ async fn main() -> Result<()> {
 
     }
 
-    println!("Compiled {} paragraphs.", url_results.len());
+    println!("Compiled {} paragraphs...", url_results.len());
     
-    let google_results = url_results.join(" ");
+    let google_results = &url_results.join(" ")[0..25000];
+
+    println!("{} chars long", google_results.len());
 
     let chatgpt_query = format!(
         r#"I would like a succinct answer to the question "{search}"
-           using the following web paragraphs as your data: "{google_results}""#);
+           using the following web paragraphs as your data: "{google_results}"
+           Answer me with a single sentence."#);
 
-    /*
-    let args: Vec<String> = env::args().collect();
-
-    let key = &args[1];
-
-    //let client = ChatGPT::new(key)?;
+    let key = &args[2];
 
     let client = ChatGPT::new_with_config(
         key,
@@ -114,11 +112,10 @@ async fn main() -> Result<()> {
     )?;
 
     let response: CompletionResponse = client
-        .send_message("")
+        .send_message(chatgpt_query)
         .await?;
 
     println!("Response: {}", response.message().content);
-    */
 
     Ok(())
 }
