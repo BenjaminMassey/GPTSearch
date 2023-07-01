@@ -11,7 +11,7 @@ use regex::Regex;
 
 #[tokio::main]
 async fn main() -> Result<()> {
-
+    
     let args: Vec<String> = env::args().collect();
 
     let search = &args[1] as &str;
@@ -27,7 +27,7 @@ async fn main() -> Result<()> {
 
     let document = scraper::Html::parse_document(&response);
 
-   let title_selector = scraper::Selector::parse("a").unwrap();
+    let title_selector = scraper::Selector::parse("a").unwrap();
 
     let titles = document.select(&title_selector).map(|x| x.html());
 
@@ -37,39 +37,88 @@ async fn main() -> Result<()> {
         .zip(1..101)
         .for_each(|(item, number)| results.push(item));
 
-    // <a\s[^>]*href=["']([^"']+)["'][^>]*>
-    let qu = '"'.to_string();
-    let mut raw_r = r"<a\s[^>]*href=[".to_string();
-    raw_r.push_str(&qu);
-    raw_r.push_str(&(r"']([^".to_string()));
-    raw_r.push_str(&qu);
-    raw_r.push_str(&(r"']+)[".to_string())); 
-    raw_r.push_str(&qu);
-    raw_r.push_str(&(r"'][^>]*>".to_string())); 
+    let raw_r = r#"<a\s[^>]*href=["']([^"']+)["'][^>]*>"#;
     let r = &raw_r[..];
     
+    let mut google_urls = Vec::new();
+
     let re = Regex::new(r).unwrap();
 
     for result in results.iter() {
         match re.captures(result) {
-            Some(caps) => println!("Found: {}", caps.get(1).unwrap().as_str()),
+            Some(caps) => {
+                let potential = caps.get(1).unwrap().as_str();
+                if &potential[0..7] == "/url?q=" {
+                    google_urls.push(&potential[7..])
+                }
+            },
             None => println!("Found nothing...")
         }
     }
+
+    assert!(google_urls.len() > 2, "Did not get enough workable URLs from Google");
+
+    let mut urls = Vec::new();
+
+    let cutoff = google_urls.len() - 3;
+    for (i, url) in google_urls.iter().enumerate() {
+        let scraped_url = &url[..(url.find("&amp;").unwrap() as usize)];
+        urls.push(scraped_url);
+        if i >= cutoff {
+            break;
+        }
+    }
+
+    let mut url_results = Vec::new();
+
+    for url in urls {
+
+        let url_response = reqwest::get(url)
+            .await?
+            .text()
+            .await?;
+
+        let url_document = scraper::Html::parse_document(&url_response);
+
+        let paragraph_selector = scraper::Selector::parse("p").unwrap();
+
+        let paragraphs = url_document.select(&paragraph_selector).map(|x| x.html());
+
+        paragraphs
+            .zip(1..101)
+            .for_each(|(item, number)| url_results.push(item));
+
+    }
+
+    println!("Compiled {} paragraphs.", url_results.len());
     
+    let google_results = url_results.join(" ");
+
+    let chatgpt_query = format!(
+        r#"I would like a succinct answer to the question "{search}"
+           using the following web paragraphs as your data: "{google_results}""#);
 
     /*
     let args: Vec<String> = env::args().collect();
 
     let key = &args[1];
 
-    let client = ChatGPT::new(key)?;
+    //let client = ChatGPT::new(key)?;
+
+    let client = ChatGPT::new_with_config(
+        key,
+        ModelConfigurationBuilder::default()
+            .engine(ChatGPTEngine::Gpt4)
+            .build()
+            .unwrap(),
+    )?;
 
     let response: CompletionResponse = client
-        .send_message("Describe in five words the Rust programming language.")
+        .send_message("")
         .await?;
 
     println!("Response: {}", response.message().content);
     */
+
     Ok(())
 }
