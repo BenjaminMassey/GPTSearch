@@ -5,6 +5,7 @@ use std::env;
 use chatgpt::types::CompletionResponse;
 use std::io::Read;
 use std::collections::HashMap;
+use std::cmp;
 use std::error::Error;
 use scraper::{Html, Selector};
 use regex::Regex;
@@ -20,10 +21,14 @@ async fn main() -> Result<()> {
 
     let search_url = base + search;
 
+    println!("Asking Google your question...");
+
     let response = reqwest::get(search_url)
         .await?
         .text()
         .await?;
+
+    println!("\nCompiling search results...\n");
 
     let document = scraper::Html::parse_document(&response);
 
@@ -82,7 +87,7 @@ async fn main() -> Result<()> {
 
         let paragraph_selector = scraper::Selector::parse("p").unwrap();
 
-        let paragraphs = url_document.select(&paragraph_selector).map(|x| x.html());
+        let paragraphs = url_document.select(&paragraph_selector).map(|x| x.text().collect::<Vec<_>>().join(" "));
 
         paragraphs
             .zip(1..101)
@@ -90,11 +95,15 @@ async fn main() -> Result<()> {
 
     }
 
-    println!("Compiled {} paragraphs...", url_results.len());
+    println!("Compiled {} paragraphs.", url_results.len());
     
-    let google_results = &url_results.join(" ")[0..25000];
+    let google_results_uncut = &url_results.join(" ");
 
-    println!("{} chars long", google_results.len());
+    let google_results = &google_results_uncut[0..cmp::min(25000, google_results_uncut.len())];
+
+    println!("{} characters long (25000 max).", google_results.len());
+
+    //println!("{google_results}");
 
     let chatgpt_query = format!(
         r#"I would like a succinct answer to the question "{search}"
@@ -111,11 +120,13 @@ async fn main() -> Result<()> {
             .unwrap(),
     )?;
 
+    println!("\nSending ChatGPT query...\n");
+
     let response: CompletionResponse = client
         .send_message(chatgpt_query)
         .await?;
 
-    println!("Response: {}", response.message().content);
-
+    println!("Answer: {}", response.message().content);
+    
     Ok(())
 }
