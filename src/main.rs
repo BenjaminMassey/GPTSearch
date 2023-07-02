@@ -21,7 +21,7 @@ async fn main() -> Result<()> {
 
     let search_url = base + search;
 
-    println!("Asking Google your question...");
+    println!("\nAsking Google your question...");
 
     let response = reqwest::get(search_url)
         .await?
