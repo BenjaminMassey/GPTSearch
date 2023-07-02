@@ -3,11 +3,7 @@ extern crate regex;
 use chatgpt::prelude::*;
 use std::env;
 use chatgpt::types::CompletionResponse;
-use std::io::Read;
-use std::collections::HashMap;
 use std::cmp;
-use std::error::Error;
-use scraper::{Html, Selector};
 use regex::Regex;
 
 #[tokio::main]
@@ -40,14 +36,13 @@ async fn main() -> Result<()> {
 
     titles
         .zip(1..101)
-        .for_each(|(item, number)| results.push(item));
+        .for_each(|(item, _number)| results.push(item));
 
-    let raw_r = r#"<a\s[^>]*href=["']([^"']+)["'][^>]*>"#;
-    let r = &raw_r[..];
+    let regex = r#"<a\s[^>]*href=["']([^"']+)["'][^>]*>"#;
     
     let mut google_urls = Vec::new();
 
-    let re = Regex::new(r).unwrap();
+    let re = Regex::new(regex).unwrap();
 
     for result in results.iter() {
         match re.captures(result) {
@@ -67,7 +62,7 @@ async fn main() -> Result<()> {
 
     let cutoff = google_urls.len() - 3;
     for (i, url) in google_urls.iter().enumerate() {
-        let scraped_url = &url[..(url.find("&amp;").unwrap() as usize)];
+        let scraped_url = &url[..url.find("&amp;").unwrap()];
         urls.push(scraped_url);
         if i >= cutoff {
             break;
@@ -91,7 +86,7 @@ async fn main() -> Result<()> {
 
         paragraphs
             .zip(1..101)
-            .for_each(|(item, number)| url_results.push(item));
+            .for_each(|(item, _number)| url_results.push(item));
 
     }
 
