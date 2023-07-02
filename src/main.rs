@@ -1,14 +1,13 @@
-extern crate reqwest;
 extern crate regex;
+extern crate reqwest;
 use chatgpt::prelude::*;
-use std::env;
 use chatgpt::types::CompletionResponse;
-use std::cmp;
 use regex::Regex;
+use std::cmp;
+use std::env;
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    
     let args: Vec<String> = env::args().collect();
 
     let search = &args[1] as &str;
@@ -19,10 +18,7 @@ async fn main() -> Result<()> {
 
     println!("\nAsking Google your question...");
 
-    let response = reqwest::get(search_url)
-        .await?
-        .text()
-        .await?;
+    let response = reqwest::get(search_url).await?.text().await?;
 
     println!("\nCompiling search results...\n");
 
@@ -39,7 +35,7 @@ async fn main() -> Result<()> {
         .for_each(|(item, _number)| results.push(item));
 
     let regex = r#"<a\s[^>]*href=["']([^"']+)["'][^>]*>"#;
-    
+
     let mut google_urls = Vec::new();
 
     let re = Regex::new(regex).unwrap();
@@ -51,12 +47,15 @@ async fn main() -> Result<()> {
                 if &potential[0..7] == "/url?q=" {
                     google_urls.push(&potential[7..])
                 }
-            },
-            None => println!("Found nothing...")
+            }
+            None => println!("Found nothing..."),
         }
     }
 
-    assert!(google_urls.len() > 2, "Did not get enough workable URLs from Google");
+    assert!(
+        google_urls.len() > 2,
+        "Did not get enough workable URLs from Google"
+    );
 
     let mut urls = Vec::new();
 
@@ -72,26 +71,23 @@ async fn main() -> Result<()> {
     let mut url_results = Vec::new();
 
     for url in urls {
-
-        let url_response = reqwest::get(url)
-            .await?
-            .text()
-            .await?;
+        let url_response = reqwest::get(url).await?.text().await?;
 
         let url_document = scraper::Html::parse_document(&url_response);
 
         let paragraph_selector = scraper::Selector::parse("p").unwrap();
 
-        let paragraphs = url_document.select(&paragraph_selector).map(|x| x.text().collect::<Vec<_>>().join(" "));
+        let paragraphs = url_document
+            .select(&paragraph_selector)
+            .map(|x| x.text().collect::<Vec<_>>().join(" "));
 
         paragraphs
             .zip(1..101)
             .for_each(|(item, _number)| url_results.push(item));
-
     }
 
     println!("Compiled {} paragraphs.", url_results.len());
-    
+
     let google_results_uncut = &url_results.join(" ");
 
     let google_results = &google_results_uncut[0..cmp::min(25000, google_results_uncut.len())];
@@ -103,7 +99,8 @@ async fn main() -> Result<()> {
     let chatgpt_query = format!(
         r#"I would like a succinct answer to the question "{search}"
            using the following web paragraphs as your data: "{google_results}"
-           Answer me with a single sentence."#);
+           Answer me with a single sentence."#
+    );
 
     let key = &args[2];
 
@@ -117,11 +114,9 @@ async fn main() -> Result<()> {
 
     println!("\nSending ChatGPT query...\n");
 
-    let response: CompletionResponse = client
-        .send_message(chatgpt_query)
-        .await?;
+    let response: CompletionResponse = client.send_message(chatgpt_query).await?;
 
     println!("Answer: {}", response.message().content);
-    
+
     Ok(())
 }
