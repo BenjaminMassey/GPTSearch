@@ -7,7 +7,9 @@ This application seeks to answer your question by having ChatGPT parse your Goog
 It searches your question, goes to the first number of URLs from that result, scrapes the paragraphs
 from those webpages, and then asks ChatGPT your question with that web data as context information.
 
-## Example
+## Examples
+
+Using Google searches can help give ChatGPT more recent of info. 
 
 Here is an example of a question that is too new for ChatGPT:
 
@@ -26,6 +28,16 @@ Here, ChatGPT does not infer the necessary context:
 Whereas GPTSearch inherently understands context such as who is most relevant because of Google:
 
 ![GPTSearch is concise](https://i.imgur.com/YEseqBK.png)
+
+ChatGPT can also simply be wrong or silly, which Google search verification can help solve.
+
+Here, ChatGPT gives a somewhat insane piece of Rust code, using very non-Rust style:
+
+![ChatGPT is silly](https://i.imgur.com/YukV7cQ.jpg)
+
+Whereas GPTSearch both gets info from real human Rust coders live from the web and is forced to be concise:
+
+![GPTSearch gets help](https://i.imgur.com/l0KnfrJ.png)
 
 ## Usage
 
