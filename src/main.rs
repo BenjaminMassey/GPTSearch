@@ -8,6 +8,9 @@ use std::env;
 
 #[tokio::main]
 async fn main() -> Result<()> {
+
+    // Do Google search
+
     let args: Vec<String> = env::args().collect();
 
     let search = &args[1] as &str;
@@ -20,9 +23,13 @@ async fn main() -> Result<()> {
 
     let response = reqwest::get(search_url).await?.text().await?;
 
+    // Parse up the HTML of the search page
+
     println!("\nCompiling search results...\n");
 
     let document = scraper::Html::parse_document(&response);
+
+    // Gather the raw URLs from the HTML page
 
     let title_selector = scraper::Selector::parse("a").unwrap();
 
@@ -33,6 +40,8 @@ async fn main() -> Result<()> {
     titles
         .zip(1..101)
         .for_each(|(item, _number)| results.push(item));
+
+    // Parse through the messy raw URLs to get more useful forms
 
     let regex = r#"<a\s[^>]*href=["']([^"']+)["'][^>]*>"#;
 
@@ -68,6 +77,8 @@ async fn main() -> Result<()> {
         }
     }
 
+    // Hit these result URLs and scrape all of the paragraph text out of them
+
     let mut url_results = Vec::new();
 
     for url in urls {
@@ -88,19 +99,21 @@ async fn main() -> Result<()> {
 
     println!("Compiled {} paragraphs.", url_results.len());
 
+    // Combine these many paragraphs and add that data to the ChatGPT query
+
     let google_results_uncut = &url_results.join(" ");
 
     let google_results = &google_results_uncut[0..cmp::min(25000, google_results_uncut.len())];
 
     println!("{} characters long (25000 max).", google_results.len());
 
-    //println!("{google_results}");
-
     let chatgpt_query = format!(
         r#"I would like a succinct answer to the question "{search}"
            using the following web paragraphs as your data: "{google_results}"
            Answer me with a single sentence."#
     );
+
+    // Send the generated query to ChatGPT to answer, and give said answer
 
     let key = &args[2];
 
