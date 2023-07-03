@@ -82,9 +82,23 @@ async fn main() -> Result<()> {
     let mut url_results = Vec::new();
 
     for url in urls {
-        let url_response = reqwest::get(url).await?.text().await?;
+        
+        // Note that pages are okay to be thrown away (continue), as
+        // things are generally limited by ChatGPT query length anyway
+        
+        let raw_url_response = reqwest::get(url).await;
 
-        let url_document = scraper::Html::parse_document(&url_response);
+        if raw_url_response.is_err() { 
+            continue; 
+        }
+
+        let url_response = raw_url_response.unwrap().text().await;
+
+        if url_response.is_err() {
+            continue;
+        }
+
+        let url_document = scraper::Html::parse_document(&url_response.unwrap());
 
         let paragraph_selector = scraper::Selector::parse("p").unwrap();
 
