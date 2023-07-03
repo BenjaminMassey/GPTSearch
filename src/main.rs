@@ -8,7 +8,6 @@ use std::env;
 
 #[tokio::main]
 async fn main() -> Result<()> {
-
     // Do Google search
 
     let args: Vec<String> = env::args().collect();
@@ -82,14 +81,13 @@ async fn main() -> Result<()> {
     let mut url_results = Vec::new();
 
     for url in urls {
-        
         // Note that pages are okay to be thrown away (continue), as
         // things are generally limited by ChatGPT query length anyway
-        
+
         let raw_url_response = reqwest::get(url).await;
 
-        if raw_url_response.is_err() { 
-            continue; 
+        if raw_url_response.is_err() {
+            continue;
         }
 
         let url_response = raw_url_response.unwrap().text().await;
