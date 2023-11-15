@@ -4,27 +4,17 @@ use chatgpt::prelude::*;
 use chatgpt::types::CompletionResponse;
 use regex::Regex;
 use std::cmp;
-use std::env;
 
-#[tokio::main]
-async fn main() -> Result<()> {
+pub async fn gpt_search(search_text: &str, openai_key: &str) -> Result<String> {
     // Do Google search
-
-    let args: Vec<String> = env::args().collect();
-
-    let search = &args[1] as &str;
 
     let base = "https://www.google.com/search?q=".to_owned();
 
-    let search_url = base + search;
-
-    println!("\nAsking Google your question...");
+    let search_url = base + search_text;
 
     let response = reqwest::get(search_url).await?.text().await?;
 
     // Parse up the HTML of the search page
-
-    println!("\nCompiling search results...\n");
 
     let document = scraper::Html::parse_document(&response);
 
@@ -109,39 +99,29 @@ async fn main() -> Result<()> {
             .for_each(|(item, _number)| url_results.push(item));
     }
 
-    println!("Compiled {} paragraphs.", url_results.len());
-
     // Combine these many paragraphs and add that data to the ChatGPT query
 
     let google_results_uncut = &url_results.join(" ");
 
     let google_results = &google_results_uncut[0..cmp::min(25000, google_results_uncut.len())];
 
-    println!("{} characters long (25000 max).", google_results.len());
-
     let chatgpt_query = format!(
-        r#"I would like a succinct answer to the question "{search}"
+        r#"I would like a succinct answer to the question "{search_text}"
            using the following web paragraphs as your data: "{google_results}"
            Answer me with a single sentence."#
     );
 
     // Send the generated query to ChatGPT to answer, and give said answer
 
-    let key = &args[2];
-
     let client = ChatGPT::new_with_config(
-        key,
+        openai_key,
         ModelConfigurationBuilder::default()
             .engine(ChatGPTEngine::Gpt4)
             .build()
             .unwrap(),
     )?;
 
-    println!("\nSending ChatGPT query...\n");
-
     let response: CompletionResponse = client.send_message(chatgpt_query).await?;
 
-    println!("Answer: {}", response.message().content);
-
-    Ok(())
+    Ok(response.message().content.to_owned())
 }
