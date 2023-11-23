@@ -140,6 +140,8 @@ pub fn gpt_search(search_text: &str, openai_key: &str) -> Option<String> {
     let response_text = &req.send().unwrap().text().unwrap();
 
     let base_json: serde_json::Value = serde_json::from_str(response_text).ok()?;
+
+    //println!("??? : {base_json}");
     
     Some (
         base_json
