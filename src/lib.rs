@@ -1,18 +1,16 @@
 extern crate regex;
 extern crate reqwest;
-use chatgpt::prelude::*;
-use chatgpt::types::CompletionResponse;
 use regex::Regex;
 use std::cmp;
 
-pub async fn gpt_search(search_text: &str, openai_key: &str) -> Result<String> {
+pub fn gpt_search(search_text: &str, openai_key: &str) -> Option<String> {
     // Do Google search
 
     let base = "https://www.google.com/search?q=".to_owned();
 
     let search_url = base + search_text;
 
-    let response = reqwest::get(search_url).await?.text().await?;
+    let response = reqwest::blocking::get(search_url).unwrap().text().unwrap();
 
     // Parse up the HTML of the search page
 
@@ -74,13 +72,13 @@ pub async fn gpt_search(search_text: &str, openai_key: &str) -> Result<String> {
         // Note that pages are okay to be thrown away (continue), as
         // things are generally limited by ChatGPT query length anyway
 
-        let raw_url_response = reqwest::get(url).await;
+        let raw_url_response = reqwest::blocking::get(url);
 
         if raw_url_response.is_err() {
             continue;
         }
 
-        let url_response = raw_url_response.unwrap().text().await;
+        let url_response = raw_url_response.unwrap().text();
 
         if url_response.is_err() {
             continue;
@@ -111,17 +109,45 @@ pub async fn gpt_search(search_text: &str, openai_key: &str) -> Result<String> {
            Answer me with a single sentence."#
     );
 
-    // Send the generated query to ChatGPT to answer, and give said answer
+    let chatgpt_query = chatgpt_query.replace('"', "'");
 
-    let client = ChatGPT::new_with_config(
-        openai_key,
-        ModelConfigurationBuilder::default()
-            .engine(ChatGPTEngine::Gpt4)
-            .build()
-            .unwrap(),
-    )?;
+    let system_query = "Bean, do you have a cord in your mouth?";
 
-    let response: CompletionResponse = client.send_message(chatgpt_query).await?;
+    let client = reqwest::blocking::Client::new();
 
-    Ok(response.message().content.to_owned())
+    let body_json = serde_json::json!({
+        "model": "gpt-4",
+        "messages": [
+          {
+            "role": "system",
+            "content": system_query
+          },
+          {
+            "role": "user",
+            "content": chatgpt_query
+          }
+        ]
+    });
+
+    let body = body_json.to_string();
+
+    let req = client
+        .post("https://api.openai.com/v1/chat/completions")
+        .body(body)
+        .header("Content-Type", "application/json")
+        .header("Authorization", format!("Bearer {}", openai_key));
+
+    let response_text = &req.send().unwrap().text().unwrap();
+
+    let base_json: serde_json::Value = serde_json::from_str(response_text).ok()?;
+    
+    Some (
+        base_json
+            .as_object()?["choices"]
+            .as_array()?[0]
+            .as_object()?["message"]
+            .as_object()?["content"]
+            .as_str()?
+            .to_owned()
+    )
 }
