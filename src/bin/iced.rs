@@ -11,6 +11,7 @@ pub fn main() -> iced::Result {
 struct Query {
     openai_key: String,
     search_text: String,
+    result_text: String,
 }
 
 #[derive(Debug, Clone)]
@@ -26,6 +27,7 @@ impl Sandbox for Query {
         Self {
             openai_key: env::var("OPENAI_API_KEY").unwrap(),
             search_text: String::new(),
+            result_text: "Your Answer Here".to_owned(),
         }
     }
 
@@ -37,7 +39,10 @@ impl Sandbox for Query {
         match message {
             Message::Submit => {
                 let result = gpt_search(&self.search_text, &self.openai_key);
-                println!("{}", result.unwrap());
+                self.result_text = match result {
+                    Some(text) => text,
+                    None => "There was an issue with the API call.".to_owned(),
+                };
             },
             Message::InputChanged(text) => {
                 self.search_text = text;
@@ -51,7 +56,8 @@ impl Sandbox for Query {
                 .on_input(Message::InputChanged)
                 .padding(10)
                 .size(30),
-            button("Submit").on_press(Message::Submit)
+            button("Submit").on_press(Message::Submit),
+            text(&self.result_text),
         ]
         .padding(20)
         .align_items(Alignment::Center)
